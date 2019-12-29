@@ -17,6 +17,11 @@ import "phoenix_html"
 // import socket from "./socket"
 import { Elm } from "../src/Main.elm";
 
+const LOCALHOST_URI = "http://localhost:4000";
+const PROD_URI = "http://localhost:4000";
+const API_ROOT_URI = process.env.NODE_ENV === "development" ? LOCALHOST_URI : PROD_URI;
+
 const app = Elm.Main.init({
-  node: document.getElementById('elm-main')
+  node: document.getElementById('elm-main'),
+  flags: { apiRootUrl: API_ROOT_URI }
 });

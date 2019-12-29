@@ -1,4 +1,4 @@
-defmodule App.Location do
+defmodule App.Places.Location do
   use Ecto.Schema
   import Ecto.Changeset
 
@@ -7,7 +7,7 @@ defmodule App.Location do
     field :country, :string, size: 64
     field :name, :string, size: 64
     has_many :weather, App.Weather
-    has_many :checkins, App.Checkin
+    has_many :checkins, App.Places.Checkin
 
     timestamps()
   end

@@ -1,0 +1,201 @@
+defmodule App.Places do
+  @moduledoc """
+  The Places context.
+  """
+
+  import Ecto.Query, warn: false
+  alias App.Repo
+
+  alias App.Places.Checkin
+  alias App.Places.Location
+
+  @doc """
+  Returns the list of checkins.
+
+  ## Examples
+
+      iex> list_checkins()
+      [%Checkin{}, ...]
+
+  """
+  def list_checkins do
+    Repo.all(Checkin)
+  end
+
+  @doc """
+  Gets a single checkin.
+
+  Raises `Ecto.NoResultsError` if the Checkin does not exist.
+
+  ## Examples
+
+      iex> get_checkin!(123)
+      %Checkin{}
+
+      iex> get_checkin!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_checkin!(id), do: Repo.get!(Checkin, id)
+
+  @doc """
+  Creates a checkin.
+
+  ## Examples
+
+      iex> create_checkin(%{field: value})
+      {:ok, %Checkin{}}
+
+      iex> create_checkin(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_checkin(attrs \\ %{}) do
+    %Checkin{}
+    |> Checkin.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a checkin.
+
+  ## Examples
+
+      iex> update_checkin(checkin, %{field: new_value})
+      {:ok, %Checkin{}}
+
+      iex> update_checkin(checkin, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_checkin(%Checkin{} = checkin, attrs) do
+    checkin
+    |> Checkin.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a Checkin.
+
+  ## Examples
+
+      iex> delete_checkin(checkin)
+      {:ok, %Checkin{}}
+
+      iex> delete_checkin(checkin)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_checkin(%Checkin{} = checkin) do
+    Repo.delete(checkin)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking checkin changes.
+
+  ## Examples
+
+      iex> change_checkin(checkin)
+      %Ecto.Changeset{source: %Checkin{}}
+
+  """
+  def change_checkin(%Checkin{} = checkin) do
+    Checkin.changeset(checkin, %{})
+  end
+
+
+  @doc """
+  Returns the list of locations.
+
+  ## Examples
+
+      iex> list_locations()
+      [%Location{}, ...]
+
+  """
+  def list_locations do
+    Repo.all(Location)
+  end
+
+  @doc """
+  Gets a single location.
+
+  Raises `Ecto.NoResultsError` if the Location does not exist.
+
+  ## Examples
+
+      iex> get_location!(123)
+      %Checkin{}
+
+      iex> get_location!(456)
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_location!(id), do: Repo.get!(Location, id)
+
+  @doc """
+  Creates a location.
+
+  ## Examples
+
+      iex> create_location(%{field: value})
+      {:ok, %Location{}}
+
+      iex> create_location(%{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def create_location(attrs \\ %{}) do
+    %Location{}
+    |> Location.changeset(attrs)
+    |> Repo.insert()
+  end
+
+  @doc """
+  Updates a location.
+
+  ## Examples
+
+      iex> update_location(location, %{field: new_value})
+      {:ok, %Location{}}
+
+      iex> update_location(location, %{field: bad_value})
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def update_location(%Location{} = checkin, attrs) do
+    checkin
+    |> Location.changeset(attrs)
+    |> Repo.update()
+  end
+
+  @doc """
+  Deletes a Location.
+
+  ## Examples
+
+      iex> delete_location(location)
+      {:ok, %Location{}}
+
+      iex> delete_location(location)
+      {:error, %Ecto.Changeset{}}
+
+  """
+  def delete_location(%Location{} = location) do
+    Repo.delete(location)
+  end
+
+  @doc """
+  Returns an `%Ecto.Changeset{}` for tracking checkin changes.
+
+  ## Examples
+
+      iex> change_checkin(location)
+      %Ecto.Changeset{source: %Location{}}
+
+  """
+  def change_location(%Location{} = location) do
+    Location.changeset(location, %{})
+  end
+
+end

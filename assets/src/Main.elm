@@ -1,84 +1,237 @@
 module Main exposing (main)
 
-import Browser
-import Http exposing (Error(..))
+import Http
+import String
+import Browser exposing (application)
+import Browser.Navigation as Nav
+import Http exposing (Error(..), request)
 import Html exposing (Html, section, div, form, input, a, i, p, text, span)
 import Html.Attributes exposing (id, type_, class, placeholder, value)
 import Html.Events exposing (onInput)
+import Url exposing (Url, fromString, toString)
+import Json.Decode exposing (Decoder, map3, list, field, string)
 
--- MODEL
-type alias SearchResult =
+
+main : Program Flags Model Msg
+main =
+    Browser.application
+        { init = init
+        , view = view
+        , update = update
+        , subscriptions = subscriptions
+        , onUrlChange = UrlChanged
+        , onUrlRequest = LinkClicked
+        }
+
+
+-- MODELS
+
+
+type AppState
+    = SearchingUsers (ApiResponse (List User))
+    | Home
+
+
+type alias RootUrl =
+    String
+
+
+type alias User =
     { id: String
-    , name: String
+    , fullName: String
+    , username: String
     }
 
-type alias SearchModel =
-    { term: String
-    , selected: String
-    , options: List SearchResult
+
+type RemoteData e r
+    = NotAsked
+    | Loading
+    | Failure e
+    | Success r
+
+
+type alias ApiResponse a =
+    RemoteData Http.Error a
+
+
+type alias Flags =
+    { apiRootUrl : String
     }
 
-initialModel : SearchModel
-initialModel =
-    { term = ""
-    , selected = "abc"
-    , options = [{ id = "abc", name = "Artjom Vassiljev"}, { id = "abd", name = "Anna Kamenskaja"}]
+
+type alias Model =
+    { key : Nav.Key
+    , url : Url
+    , apiRootUrl : Maybe Url
+    , searchTerm : String
+    , state : AppState
     }
+
+
+init : Flags -> Url -> Nav.Key -> ( Model, Cmd Msg )
+init flags url key =
+    ( Model key url (Url.fromString flags.apiRootUrl) "" Home, Cmd.none )
+
 
 -- UPDATE
-url : String
-url
-    = "http://localhost:5000/api/users/?q="
 
-type ApiResponse
-    = SearchQueryRequest
-    | SearchQueryResponse (Result Http.Error String)
 
-type InputMsg
-    = SearchTerm String
-    | SelectUser SearchResult
+type Msg
+    = LinkClicked Browser.UrlRequest
+    | UrlChanged Url
+    | SearchTermUpdated String
+    | UsersRetrieved (Result Http.Error (List User))
+    | UserClicked String
 
-update : InputMsg -> SearchModel -> SearchModel
-update message searchModel =
-    case message of
-        SearchTerm term ->
-            { searchModel | term = term }
 
-        SelectUser user ->
-            { searchModel | selected = user.id }
+update : Msg -> Model -> ( Model, Cmd Msg )
+update msg model =
+    case msg of
+        LinkClicked urlRequest ->
+            case urlRequest of
+                Browser.Internal url ->
+                    ( model, Nav.pushUrl model.key (Url.toString url) )
+
+                Browser.External href ->
+                    ( model, Nav.load href )
+
+        UrlChanged url ->
+            ( { model | url = url }
+            , Cmd.none
+            )
+
+        SearchTermUpdated searchTerm ->
+            if String.length searchTerm < 4 then
+                ( { model | searchTerm = searchTerm, state = Home }, Cmd.none )
+            else
+                case model.apiRootUrl of
+                    Nothing ->
+                        ( model, Cmd.none )
+
+                    Just rootUrl ->
+                        ( { model | searchTerm = searchTerm }, searchUsers searchTerm )
+
+        UsersRetrieved result ->
+            case result of
+                Ok users ->
+                    ( { model | state = SearchingUsers (Success users) }, Cmd.none )
+
+                Err error ->
+                    ( { model | state = SearchingUsers (Failure error) }, Cmd.none )
+
+        UserClicked userId ->
+            case model.apiRootUrl of
+                Nothing ->
+                    ( model, Cmd.none )
+
+                Just rootUrl ->
+                    ( model, Nav.load ("/users/" ++ userId) )
+
 
 -- VIEW
-view : SearchModel -> Html InputMsg
-view search =
-    section [ class "section" ]
-        [ div [ class "container" ]
-            [ form []
-                [ div [ class "dropdown is-active" ]
-                    [ div [ class "dropdown-trigger" ]
-                        [ div [ class "field" ]
-                            [ p [ class "control is-expanded has-icons-right" ]
-                                [ input [ class "input", type_ "search", placeholder "Search...", value search.term, onInput SearchTerm ] []
-                                ,  span [ class "icon is-small is-right" ]
-                                    [ i [ class "fas fa-search" ] [] ]
+
+
+renderSearchRow: User -> Html msg
+renderSearchRow item =
+    a [ class "dropdown-item" ] [ text item.fullName ]
+
+
+renderSearchResults : RootUrl -> ApiResponse (List User) -> Html Msg
+renderSearchResults rootUrl response =
+    case response of
+        NotAsked ->
+            div [][]
+
+        Loading ->
+            -- showLoader
+            text "Loading"
+
+        Failure error ->
+            -- show error
+            text "Oops! An error ocurred"
+
+        Success users ->
+            div [ class "dropdown-content" ] (List.map renderSearchRow users)
+
+
+view : Model -> Browser.Document Msg
+view model =
+    { title = "Taliujumine"
+    , body =
+        [
+            section [ class "section" ]
+                [ div [ class "container" ]
+                    [ form []
+                        [ div [ class "dropdown is-active" ]
+                            [ div [ class "dropdown-trigger" ]
+                                [ div [ class "field" ]
+                                    [ p [ class "control is-expanded has-icons-right" ]
+                                        [ input [ class "input", type_ "search", placeholder "Search...", value model.searchTerm, onInput SearchTermUpdated ] []
+                                        ,  span [ class "icon is-small is-right" ]
+                                            [ i [ class "fas fa-search" ] [] ]
+                                        ]
+                                    ]
                                 ]
-                            ]
-                        ]
-                    , div [ class "dropdown-menu" ]
-                        [ div [ class "dropdown-content" ]
-                            [ a [ class "dropdown-item" ] [ text "Item #1" ]
-                            , a [ class "dropdown-item" ] [ text "Item #2" ]
-                            , a [ class "dropdown-item" ] [ text "Item #3" ]
+                            , div [ class "dropdown-menu" ]
+                                [ case model.state of
+                                    Home ->
+                                        div [][]
+        
+                                    SearchingUsers users ->
+                                        case model.apiRootUrl of
+                                            Nothing ->
+                                                text ""
+        
+                                            Just rootUrl ->
+                                                renderSearchResults (toString rootUrl) users
+                                ]
                             ]
                         ]
                     ]
                 ]
-            ]
         ]
+    }
 
-main : Program () SearchModel InputMsg
-main =
-    Browser.sandbox
-        { init = initialModel
-        , view = view
-        , update = update
+
+-- SUBSCRIPTION
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    Sub.none
+
+
+-- API
+
+
+searchUsers : String -> Cmd Msg
+searchUsers searchTerm =
+    let
+        endpoint =
+            "http://localhost:4000/api/v1/users?q=" ++ searchTerm
+    in
+    request
+        { method = "GET"
+        , headers = []
+        , url = endpoint
+        , body = Http.emptyBody
+        , timeout = Nothing
+        , tracker = Nothing
+        , expect = Http.expectJson UsersRetrieved usersListDecoder
         }
+
+
+-- JSON DECODERS
+
+
+userDecoder : Decoder User
+userDecoder =
+    map3 User
+        (field "id" string)
+        (field "fullName" string)
+        (field "userName" string)
+
+
+usersListDecoder : Decoder (List User)
+usersListDecoder =
+    list userDecoder
