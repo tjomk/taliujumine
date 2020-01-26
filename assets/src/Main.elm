@@ -2,14 +2,16 @@ module Main exposing (main)
 
 import Http
 import String
+import Debug
 import Browser exposing (application)
 import Browser.Navigation as Nav
 import Http exposing (Error(..), request)
 import Html exposing (Html, section, div, form, input, a, i, p, text, span)
 import Html.Attributes exposing (id, type_, class, placeholder, value)
 import Html.Events exposing (onInput)
-import Url exposing (Url, fromString, toString)
-import Json.Decode exposing (Decoder, map3, list, field, string)
+import Url exposing (Url, fromString)
+import Json.Decode as Decode exposing (Decoder, string, list, int)
+import Json.Decode.Pipeline exposing (required)
 
 
 main : Program Flags Model Msg
@@ -37,10 +39,14 @@ type alias RootUrl =
 
 
 type alias User =
-    { id: String
+    { id: Int
     , fullName: String
     , username: String
     }
+
+
+type alias Users =
+    { data: List User }
 
 
 type RemoteData e r
@@ -148,7 +154,8 @@ renderSearchResults rootUrl response =
 
         Failure error ->
             -- show error
-            text "Oops! An error ocurred"
+            -- text "Oops! An error ocurred"
+            text (Debug.toString error)
 
         Success users ->
             div [ class "dropdown-content" ] (List.map renderSearchRow users)
@@ -183,7 +190,7 @@ view model =
                                                 text ""
         
                                             Just rootUrl ->
-                                                renderSearchResults (toString rootUrl) users
+                                                renderSearchResults (Url.toString rootUrl) users
                                 ]
                             ]
                         ]
@@ -226,12 +233,12 @@ searchUsers searchTerm =
 
 userDecoder : Decoder User
 userDecoder =
-    map3 User
-        (field "id" string)
-        (field "fullName" string)
-        (field "userName" string)
+    Decode.succeed User
+        |> required "id" int 
+        |> required "fullName" string
+        |> required "username" string
 
 
 usersListDecoder : Decoder (List User)
 usersListDecoder =
-    list userDecoder
+    Decode.at [ "data" ] (Decode.list userDecoder)
