@@ -42,5 +42,7 @@ defmodule AppWeb.Endpoint do
     key: "_app_key",
     signing_salt: "gIfknn98"
 
+  plug CORSPlug, origin: ["http://localhost:1234"]
+
   plug AppWeb.Router
 end

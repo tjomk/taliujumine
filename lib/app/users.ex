@@ -56,6 +56,22 @@ defmodule App.Users do
   end
 
   @doc """
+  Gets a single user by the username
+
+  Raises `Ecto.NoResultsError` if the User does not exist.
+
+  ## Examples
+  
+    iex> get_by_username!("tjomk")
+    %User{}
+
+    iex> get_by_username!("john")
+    ** (Ecto.NoResultsError)
+
+  """
+  def get_by_username!(username), do: Repo.get_by!(User, [username: username])
+
+  @doc """
   Gets a single user.
 
   Raises `Ecto.NoResultsError` if the User does not exist.

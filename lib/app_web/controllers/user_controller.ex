@@ -35,7 +35,7 @@ defmodule AppWeb.UserController do
   end
 
   def show(conn, %{"id" => id}) do
-    user = Users.get_user!(id)
+    user = Users.get_by_username!(id)
     render(conn, "show.json", user: user)
   end
 

@@ -118,6 +118,22 @@ defmodule App.Places do
   end
 
   @doc """
+  Gets a single location by its name.
+
+  Raises `Ecto.NoResultsError` if the Location does not exist.
+
+  ## Examples
+
+      iex> get_location_by_slug("pirita")
+      %Checkin{}
+
+      iex> get_location_by_slug("north pole")
+      ** (Ecto.NoResultsError)
+
+  """
+  def get_location_by_slug!(slug), do: Repo.get_by!(Location, [slug: slug])
+
+  @doc """
   Gets a single location.
 
   Raises `Ecto.NoResultsError` if the Location does not exist.
@@ -163,8 +179,8 @@ defmodule App.Places do
       {:error, %Ecto.Changeset{}}
 
   """
-  def update_location(%Location{} = checkin, attrs) do
-    checkin
+  def update_location(%Location{} = location, attrs) do
+    location
     |> Location.changeset(attrs)
     |> Repo.update()
   end

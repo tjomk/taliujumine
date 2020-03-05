@@ -13,17 +13,20 @@ defmodule AppWeb.Router do
     plug :accepts, ["json"]
   end
 
-  scope "/", AppWeb do
-    pipe_through :browser
-
-    get "/", PageController, :index
-  end
-
   # Other scopes may use custom stacks.
   scope "/api/v1", AppWeb do
     pipe_through :api
 
     resources "/users", UserController
     resources "/checkins", CheckinController
+    resources "/locations", LocationController
   end
+
+  scope "/", AppWeb do
+    pipe_through :browser
+
+    get "/", PageController, :index
+    get "/*page", PageController, :index
+  end
+
 end

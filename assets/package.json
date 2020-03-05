@@ -7,7 +7,6 @@
     "elm": "elm"
   },
   "dependencies": {
-    "bulma": "^0.8.0",
     "phoenix": "file:../deps/phoenix",
     "phoenix_html": "file:../deps/phoenix_html"
   },
