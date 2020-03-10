@@ -20,6 +20,9 @@ defmodule AppWeb.LocationController do
     end
   end
 
+  @doc """
+  Shows a specific place by provided slug.
+  """
   def show(conn, %{"id" => id}) do
     location = Places.get_location_by_slug!(id)
     render(conn, "show.json", location: location)

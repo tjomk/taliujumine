@@ -1,6 +1,7 @@
 defmodule AppWeb.LocationView do
   use AppWeb, :view
   alias AppWeb.LocationView
+  alias AppWeb.CheckinView
 
   def render("index.json", %{locations: locations}) do
     %{data: render_many(locations, LocationView, "location.json")}
@@ -18,6 +19,7 @@ defmodule AppWeb.LocationView do
       slug: location.slug,
       url: location.url,
       location: location.location,
-      description: location.description}
+      description: location.description,
+      checkins: render_many(location.checkins, CheckinView, "checkin.json")}
   end
 end

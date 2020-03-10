@@ -13,6 +13,6 @@ defmodule App.Places.Checkin do
   def changeset(checkin, attrs) do
     checkin
     |> cast(attrs, [:minutes])
-    |> validate_required([:minutes])
+    |> validate_required([:minutes, :location, :user])
   end
 end

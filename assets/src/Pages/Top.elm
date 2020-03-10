@@ -29,7 +29,7 @@ page =
 
 view : Html Msg
 view =
-    div [ Attr.class "page" ]
+    div [ Attr.class "container" ]
         [ h1
             [ Attr.class "page__title" ]
             [ text "404 is life." ]

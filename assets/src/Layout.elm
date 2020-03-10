@@ -1,22 +1,48 @@
 module Layout exposing (view)
 
 import Generated.Routes as Routes exposing (Route, routes)
+import Global
 import Html exposing (Html, a, div, img, nav, span, text)
 import Html.Attributes as Attr
 import Html.Events exposing (onClick)
 import Utils.Spa as Spa
 
 
+getMobileMenuClasses : Bool -> String
+getMobileMenuClasses menuOpen =
+    if menuOpen then
+        "navbar-burger burger is-active"
+
+    else
+        "navbar-burger burger"
+
+
+getMenuItemClasses : Bool -> String
+getMenuItemClasses menuOpen =
+    if menuOpen then
+        "navbar-menu is-active"
+
+    else
+        "navbar-menu"
+
+
 view : Spa.LayoutContext msg -> Html msg
-view { page, route } =
+view { page, route, fromGlobalMsg, global } =
     div [ Attr.class "app" ]
-        [ viewHeader route
+        [ Html.map fromGlobalMsg (viewHeader route global)
         , page
         ]
 
 
-viewHeader : Route -> Html msg
-viewHeader currentRoute =
+viewHeader : Route -> Global.Model -> Html Global.Msg
+viewHeader currentRoute model =
+    let
+        menuClasses =
+            getMobileMenuClasses model.menuOpen
+
+        itemClasses =
+            getMenuItemClasses model.menuOpen
+    in
     nav [ Attr.class "navbar" ]
         [ div [ Attr.class "container " ]
             [ div [ Attr.class "navbar-brand" ]
@@ -26,13 +52,13 @@ viewHeader currentRoute =
                     ]
                     [ img [ Attr.src "https://bulma.io/images/bulma-logo.png", Attr.width 112, Attr.height 28 ] []
                     ]
-                , span [ Attr.class "navbar-burger burger" ]
+                , span [ Attr.class menuClasses, onClick Global.MobileMenuClick ]
                     [ span [] []
                     , span [] []
                     , span [] []
                     ]
                 ]
-            , div [ Attr.class "navbar-menu" ]
+            , div [ Attr.class itemClasses ]
                 [ div [ Attr.class "navbar-start" ]
                     [ viewLink currentRoute ( "home", routes.top )
                     , viewLink currentRoute ( "nowhere", routes.notFound )

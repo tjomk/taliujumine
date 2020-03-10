@@ -16,11 +16,12 @@ type alias Flags =
 
 
 type alias Model =
-    {}
+    { menuOpen : Bool
+    }
 
 
 type Msg
-    = Msg
+    = MobileMenuClick
 
 
 type alias Commands msg =
@@ -30,18 +31,20 @@ type alias Commands msg =
 
 init : Commands msg -> Flags -> ( Model, Cmd Msg, Cmd msg )
 init _ _ =
-    ( {}
+    ( { menuOpen = False }
     , Cmd.none
     , Ports.log "Hello!"
     )
 
 
 update : Commands msg -> Msg -> Model -> ( Model, Cmd Msg, Cmd msg )
-update _ _ model =
-    ( model
-    , Cmd.none
-    , Cmd.none
-    )
+update _ msg model =
+    case msg of
+        MobileMenuClick ->
+            ( { model | menuOpen = not model.menuOpen }
+            , Cmd.none
+            , Cmd.none
+            )
 
 
 subscriptions : Model -> Sub Msg

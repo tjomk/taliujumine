@@ -1,14 +1,18 @@
 module Pages.Locations.Dynamic exposing (Model, Msg, page)
 
 import Generated.Locations.Params as Params
-import Html exposing (Html, a, br, div, figure, form, i, img, input, p, section, span, text)
+import Html exposing (Html, a, article, br, div, figure, form, h4, i, img, input, p, section, span, text)
 import Html.Attributes exposing (class, href, placeholder, src, target, type_, value)
 import Html.Events exposing (onInput)
 import Http
+import Iso8601
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline exposing (required)
 import RemoteData exposing (WebData)
 import Spa.Page
+import Task
+import Time
+import Time.Distance exposing (inWords)
 import Utils.Spa exposing (Page)
 
 
@@ -30,7 +34,7 @@ page =
 type alias Checkin =
     { id : Int
     , timestamp : String
-    , fullName : String
+    , user : User
     }
 
 
@@ -43,6 +47,7 @@ type alias Location =
     , description : String
     , url : String
     , location : ( Float, Float )
+    , checkins : List Checkin
     }
 
 
@@ -56,16 +61,19 @@ type alias User =
 type alias Model =
     { location : WebData Location
     , locationName : String
-    , checkins : List Checkin
     , users : WebData (List User)
     , searchTerm : String
+    , time : Time.Posix
     }
 
 
 init : Params.Dynamic -> ( Model, Cmd Msg )
 init { param1 } =
-    ( Model RemoteData.Loading param1 [] RemoteData.NotAsked ""
-    , fetchLocationInfo (getLocationName param1)
+    ( Model RemoteData.Loading param1 RemoteData.NotAsked "" (Time.millisToPosix 0)
+    , Cmd.batch
+        [ fetchLocationInfo (getLocationName param1)
+        , Task.perform GetCurrentTime Time.now
+        ]
     )
 
 
@@ -86,6 +94,7 @@ type Msg
     = LocationInfoReceived (WebData Location)
     | UsersListReceived (WebData (List User))
     | SearchTermUpdated String
+    | GetCurrentTime Time.Posix
 
 
 title : { global : globalModel, model : Model } -> String
@@ -107,6 +116,9 @@ title data =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        GetCurrentTime time ->
+            ( { model | time = time }, Cmd.none )
+
         LocationInfoReceived response ->
             ( { model | location = response }, Cmd.none )
 
@@ -172,7 +184,8 @@ renderView model =
         RemoteData.Success location ->
             div [ class "columns is-flex-touch is-reverse-columns-touch" ]
                 [ div [ class "column is-two-thirds" ]
-                    [ text location.name
+                    [ h4 [ class "is-size-4" ] [ text location.name ]
+                    , viewCheckins location.checkins model.time
                     , viewUserSearch model
                     ]
                 , div [ class "column" ]
@@ -182,6 +195,36 @@ renderView model =
 
         RemoteData.Failure error ->
             text ("Oops! " ++ parseError error)
+
+
+viewCheckin : Time.Posix -> Checkin -> Html a
+viewCheckin currentTime checkin =
+    let
+        ts =
+            Iso8601.toTime checkin.timestamp
+                |> Result.withDefault (Time.millisToPosix 0)
+
+        t =
+            inWords ts currentTime
+    in
+    div [ class "content" ]
+        [ p
+            []
+            [ span [ class "icon is-small" ]
+                [ i [ class "fa fa-map-marker" ] []
+                ]
+            , text (checkin.user.username ++ " checked in " ++ t)
+            ]
+        ]
+
+
+viewCheckins : List Checkin -> Time.Posix -> Html a
+viewCheckins checkins currentTime =
+    let
+        viewCheckinWithTime =
+            viewCheckin currentTime
+    in
+    div [] (List.map viewCheckinWithTime checkins)
 
 
 parseError : Http.Error -> String
@@ -227,23 +270,19 @@ viewSearchResults model =
 
 viewUserSearch : Model -> Html Msg
 viewUserSearch model =
-    section [ class "section" ]
-        [ div [ class "container" ]
-            [ form []
-                [ div [ class "dropdown is-active" ]
-                    [ div [ class "dropdown-trigger" ]
-                        [ div [ class "field" ]
-                            [ p [ class "control is-expanded has-icons-right" ]
-                                [ input [ class "input", type_ "search", placeholder "Search...", value model.searchTerm, onInput SearchTermUpdated ] []
-                                , span [ class "icon is-small is-right" ]
-                                    [ i [ class "fas fa-search" ] [] ]
-                                ]
-                            ]
-                        ]
-                    , div [ class "dropdown-menu" ]
-                        [ viewSearchResults model
+    form []
+        [ div [ class "dropdown is-active" ]
+            [ div [ class "dropdown-trigger" ]
+                [ div [ class "field" ]
+                    [ p [ class "control is-expanded has-icons-right" ]
+                        [ input [ class "input", type_ "search", placeholder "Search...", value model.searchTerm, onInput SearchTermUpdated ] []
+                        , span [ class "icon is-small is-right" ]
+                            [ i [ class "fas fa-search" ] [] ]
                         ]
                     ]
+                ]
+            , div [ class "dropdown-menu" ]
+                [ viewSearchResults model
                 ]
             ]
         ]
@@ -318,7 +357,21 @@ locationDecoder =
             |> required "description" Decode.string
             |> required "url" Decode.string
             |> required "location" decodeTuple
+            |> required "checkins" (Decode.list checkinDecoder)
         )
+
+
+checkinDecoder : Decoder Checkin
+checkinDecoder =
+    Decode.succeed Checkin
+        |> required "id" Decode.int
+        |> required "created" Decode.string
+        |> required "user" userDecoder
+
+
+checkinListDecoder : Decoder (List Checkin)
+checkinListDecoder =
+    Decode.at [ "checkins" ] (Decode.list checkinDecoder)
 
 
 userDecoder : Decoder User

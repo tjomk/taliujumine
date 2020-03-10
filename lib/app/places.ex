@@ -19,7 +19,7 @@ defmodule App.Places do
 
   """
   def list_checkins do
-    Repo.all(Checkin)
+    Repo.all Checkin, preload: [:location, :user]
   end
 
   @doc """
@@ -51,7 +51,7 @@ defmodule App.Places do
 
   """
   def create_checkin(attrs \\ %{}) do
-    %Checkin{}
+    %Checkin{location: attrs.location, user: attrs.user}
     |> Checkin.changeset(attrs)
     |> Repo.insert()
   end
@@ -103,6 +103,22 @@ defmodule App.Places do
     Checkin.changeset(checkin, %{})
   end
 
+  @doc """
+  Returns 50 latest checkins for a place
+
+  ## Examples
+
+    iex> latest_checkins_for_location(location)
+    [%Checkin{}, ...]
+
+  """
+  def latest_checkins_for_location(%Location{} = location, num \\ 10) do
+    q = from c in Checkin,
+      where: c.location_id == ^location.id,
+      preload: [:user],
+      limit: ^num
+    Repo.all(q)
+  end
 
   @doc """
   Returns the list of locations.
@@ -131,7 +147,11 @@ defmodule App.Places do
       ** (Ecto.NoResultsError)
 
   """
-  def get_location_by_slug!(slug), do: Repo.get_by!(Location, [slug: slug])
+  def get_location_by_slug!(slug) do
+    Repo.one from l in Location,
+      where: l.slug == ^slug,
+      preload: [checkins: [:user]]
+  end
 
   @doc """
   Gets a single location.
