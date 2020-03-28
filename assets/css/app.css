@@ -14,5 +14,9 @@ html, body {
 }
 
 .navbar {
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
+}
+
+.dropdown {
+  display: block;
 }

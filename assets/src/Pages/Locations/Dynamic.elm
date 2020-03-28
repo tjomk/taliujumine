@@ -1,9 +1,9 @@
 module Pages.Locations.Dynamic exposing (Model, Msg, page)
 
 import Generated.Locations.Params as Params
-import Html exposing (Html, a, article, br, div, figure, form, h4, i, img, input, li, p, section, span, text, ul)
-import Html.Attributes exposing (class, href, placeholder, src, target, type_, value)
-import Html.Events exposing (onInput)
+import Html exposing (Html, a, article, b, br, button, div, figure, form, h2, h4, i, img, input, label, li, p, section, span, text, ul)
+import Html.Attributes exposing (class, href, name, placeholder, src, target, type_, value)
+import Html.Events exposing (onClick, onInput)
 import Http
 import Iso8601
 import Json.Decode as Decode exposing (Decoder)
@@ -64,12 +64,14 @@ type alias Model =
     , users : WebData (List User)
     , searchTerm : String
     , time : Time.Posix
+    , showCheckinModal : Bool
+    , checkinUser : Maybe User
     }
 
 
 init : Params.Dynamic -> ( Model, Cmd Msg )
 init { param1 } =
-    ( Model RemoteData.Loading param1 RemoteData.NotAsked "" (Time.millisToPosix 0)
+    ( Model RemoteData.Loading param1 RemoteData.NotAsked "" (Time.millisToPosix 0) False Maybe.Nothing
     , Cmd.batch
         [ fetchLocationInfo (getLocationName param1)
         , Task.perform GetCurrentTime Time.now
@@ -95,6 +97,9 @@ type Msg
     | UsersListReceived (WebData (List User))
     | SearchTermUpdated String
     | GetCurrentTime Time.Posix
+    | ShowConfirmationModal (Maybe User)
+    | CloseConfirmationModal
+    | HideSearchResults
 
 
 title : { global : globalModel, model : Model } -> String
@@ -131,6 +136,15 @@ update msg model =
 
         UsersListReceived response ->
             ( { model | users = response }, Cmd.none )
+
+        ShowConfirmationModal user ->
+            ( { model | showCheckinModal = True, checkinUser = user }, Cmd.none )
+
+        CloseConfirmationModal ->
+            ( { model | showCheckinModal = False, searchTerm = "" }, Cmd.none )
+
+        HideSearchResults ->
+            ( { model | searchTerm = "" }, Cmd.none )
 
 
 
@@ -172,6 +186,54 @@ subscriptions _ =
 -- VIEW
 
 
+getModalClasses : Bool -> String
+getModalClasses isActive =
+    if isActive then
+        "modal is-active"
+
+    else
+        "modal"
+
+
+viewCheckinForm : Maybe User -> Html Msg
+viewCheckinForm user =
+    form []
+        [ case user of
+            Just v ->
+                text ("Well done, " ++ v.fullName ++ "!")
+
+            Nothing ->
+                div [ class "field" ]
+                    [ label [ class "label" ] [ text "Your name" ]
+                    , div [ class "control" ]
+                        [ input [ class "input", type_ "text", name "name", placeholder "Optional" ] []
+                        ]
+                    ]
+        , div [ class "field" ]
+            [ label [ class "label" ] [ text "How was it (in a few words)?" ]
+            , div [ class "control" ]
+                [ input [ class "input", type_ "text", name "comment", placeholder "Optional" ] []
+                ]
+            ]
+        , div [ class "field" ]
+            [ label [ class "label" ] [ text "Minutes spent in water" ]
+            , div [ class "control" ]
+                [ input [ class "input", type_ "text", name "minutes", placeholder "Optional" ] []
+                ]
+            ]
+        , div [ class "field" ]
+            [ label [ class "label" ] [ text "Times you swam" ]
+            , div [ class "control" ]
+                [ input [ class "input", type_ "text", name "times", placeholder "Optional" ] []
+                ]
+            ]
+        , div [ class "buttons" ]
+            [ button [ class "button is-primary" ] [ text "Checkin" ]
+            , button [ class "button is-info", onClick CloseConfirmationModal ] [ text "Cancel" ]
+            ]
+        ]
+
+
 renderView : Model -> Html Msg
 renderView model =
     case model.location of
@@ -182,14 +244,29 @@ renderView model =
             text "Fetching..."
 
         RemoteData.Success location ->
-            div [ class "columns is-flex-touch is-reverse-columns-touch" ]
-                [ div [ class "column is-two-thirds" ]
-                    [ h4 [ class "is-size-4" ] [ text location.name ]
-                    , viewCheckins location.checkins model.time
-                    , viewUserSearch model
+            div []
+                [ h2 [ class "is-size-2" ] [ text location.name ]
+                , div [ class "columns is-flex-touch is-reverse-columns-touch" ]
+                    [ div [ class "column is-two-thirds" ]
+                        [ viewUserSearch model
+                        , viewStats model
+                        , viewCheckins location.checkins model.time
+                        ]
+                    , div [ class "column" ]
+                        [ viewSidebar location
+                        ]
                     ]
-                , div [ class "column" ]
-                    [ viewSidebar location
+                , div [ class (getModalClasses model.showCheckinModal) ]
+                    [ div [ class "modal-background", onClick CloseConfirmationModal ] []
+                    , div [ class "modal-content" ]
+                        [ article [ class "message" ]
+                            [ div [ class "message-header" ]
+                                [ p [] [ text "How was your swim today?" ]
+                                ]
+                            , div [ class "message-body" ] [ viewCheckinForm model.checkinUser ]
+                            ]
+                        ]
+                    , button [ class "modal-close is-large", onClick CloseConfirmationModal ] []
                     ]
                 ]
 
@@ -243,12 +320,22 @@ parseError httpError =
             message
 
 
-viewUserRow : User -> Html a
-viewUserRow item =
-    a [ class "dropdown-item", href ("/users/@" ++ item.username) ] [ text item.fullName ]
+viewUserRow : User -> Html Msg
+viewUserRow user =
+    div [ class "dropdown-item", onClick (ShowConfirmationModal (Just user)) ] [ text (user.fullName ++ " (" ++ user.username ++ ")") ]
 
 
-viewSearchResults : Model -> Html a
+viewNewUserEntry : Html Msg
+viewNewUserEntry =
+    div [ class "dropdown-item", onClick (ShowConfirmationModal Nothing) ]
+        [ span [ class "icon is-small" ]
+            [ i [ class "fa fa-map-marker" ] []
+            ]
+        , text "Checkin without account"
+        ]
+
+
+viewSearchResults : Model -> Html Msg
 viewSearchResults model =
     case model.users of
         RemoteData.NotAsked ->
@@ -262,30 +349,28 @@ viewSearchResults model =
             text ("Oops! " ++ parseError error)
 
         RemoteData.Success users ->
-            if List.length users > 0 then
-                div [ class "dropdown-content" ] (List.append (List.map viewUserRow users) (List.singleton (a [ class "dropdown-item" ] [ text "Checkin" ])))
+            if String.length model.searchTerm < 4 then
+                div [] []
+
+            else if List.length users > 0 then
+                div [ class "dropdown-content" ]
+                    (List.append (List.map viewUserRow users) (List.singleton viewNewUserEntry))
 
             else
-                div [ class "dropdown-content" ]
-                    [ a [ class "dropdown-item", href ("/locations/@" ++ model.locationName ++ "/checkin") ]
-                        [ span [ class "icon is-small" ]
-                            [ i [ class "fa fa-plus-square-o" ] []
-                            ]
-                        , text "Checkin here"
-                        ]
-                    ]
+                div [ class "dropdown-content" ] [ viewNewUserEntry ]
 
 
 viewUserSearch : Model -> Html Msg
 viewUserSearch model =
-    form []
-        [ div [ class "dropdown is-active" ]
+    form [ class "mb-2 mt-1" ]
+        [ p [ class "mb-1" ] [ text "Just start typing your name or nickname to checkin here." ]
+        , div [ class "dropdown is-active" ]
             [ div [ class "dropdown-trigger" ]
                 [ div [ class "field" ]
                     [ p [ class "control is-expanded has-icons-right" ]
                         [ input [ class "input", type_ "search", placeholder "Search...", value model.searchTerm, onInput SearchTermUpdated ] []
                         , span [ class "icon is-small is-right" ]
-                            [ i [ class "fas fa-search" ] [] ]
+                            [ i [ class "fa fa-search" ] [] ]
                         ]
                     ]
                 ]
@@ -293,6 +378,26 @@ viewUserSearch model =
                 [ viewSearchResults model
                 ]
             ]
+        ]
+
+
+pluralPeople : Int -> String
+pluralPeople total =
+    if total == 1 then
+        "person"
+
+    else
+        "people"
+
+
+viewStats : Model -> Html a
+viewStats model =
+    h4 [ class "is-size-4" ]
+        [ text "A total of "
+        , b [] [ text (String.fromInt 95) ]
+        , text " "
+        , text (pluralPeople 95)
+        , text " checked in here today. Latest checkins:"
         ]
 
 
