@@ -56,6 +56,12 @@ defmodule App.Places do
     |> Repo.insert()
   end
 
+  def create_checkin(location, user, attrs \\ %{}) do
+    %Checkin{location: location, user: user}
+    |> Checkin.changeset(attrs)
+    |> Repo.insert()
+  end
+
   @doc """
   Updates a checkin.
 

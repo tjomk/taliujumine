@@ -1,7 +1,7 @@
 module Pages.Locations.Dynamic exposing (Model, Msg, page)
 
 import Generated.Locations.Params as Params
-import Html exposing (Html, a, article, br, div, figure, form, h4, i, img, input, p, section, span, text)
+import Html exposing (Html, a, article, br, div, figure, form, h4, i, img, input, li, p, section, span, text, ul)
 import Html.Attributes exposing (class, href, placeholder, src, target, type_, value)
 import Html.Events exposing (onInput)
 import Http
@@ -107,7 +107,7 @@ title data =
             "Loading..."
 
         RemoteData.Success location ->
-            location.name
+            location.name ++ " - " ++ location.description
 
         RemoteData.Failure error ->
             "Error"
@@ -176,7 +176,7 @@ renderView : Model -> Html Msg
 renderView model =
     case model.location of
         RemoteData.NotAsked ->
-            text "haven't queried"
+            text "Haven't queried"
 
         RemoteData.Loading ->
             text "Fetching..."
@@ -207,14 +207,11 @@ viewCheckin currentTime checkin =
         t =
             inWords ts currentTime
     in
-    div [ class "content" ]
-        [ p
-            []
-            [ span [ class "icon is-small" ]
-                [ i [ class "fa fa-map-marker" ] []
-                ]
-            , text (checkin.user.username ++ " checked in " ++ t)
+    li []
+        [ span [ class "icon is-small" ]
+            [ i [ class "fa fa-map-marker" ] []
             ]
+        , text (checkin.user.username ++ " checked in " ++ t)
         ]
 
 
@@ -224,7 +221,7 @@ viewCheckins checkins currentTime =
         viewCheckinWithTime =
             viewCheckin currentTime
     in
-    div [] (List.map viewCheckinWithTime checkins)
+    ul [ class "block-list is-small is-outlined" ] (List.map viewCheckinWithTime checkins)
 
 
 parseError : Http.Error -> String
@@ -265,7 +262,18 @@ viewSearchResults model =
             text ("Oops! " ++ parseError error)
 
         RemoteData.Success users ->
-            div [ class "dropdown-content" ] (List.map viewUserRow users)
+            if List.length users > 0 then
+                div [ class "dropdown-content" ] (List.append (List.map viewUserRow users) (List.singleton (a [ class "dropdown-item" ] [ text "Checkin" ])))
+
+            else
+                div [ class "dropdown-content" ]
+                    [ a [ class "dropdown-item", href ("/locations/@" ++ model.locationName ++ "/checkin") ]
+                        [ span [ class "icon is-small" ]
+                            [ i [ class "fa fa-plus-square-o" ] []
+                            ]
+                        , text "Checkin here"
+                        ]
+                    ]
 
 
 viewUserSearch : Model -> Html Msg

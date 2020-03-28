@@ -19,7 +19,7 @@ defmodule App.Places.Location do
   @doc false
   def changeset(location, attrs) do
     location
-    |> cast(attrs, [:name, :city, :country, :url, :description])
+    |> cast(attrs, [:name, :city, :country, :url, :description, :slug, :location])
     |> validate_required([:name, :city, :country])
     |> validate_length(:city, min: 2)
     |> validate_length(:country, min: 4)

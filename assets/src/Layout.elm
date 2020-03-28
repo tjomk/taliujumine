@@ -63,6 +63,14 @@ viewHeader currentRoute model =
                     [ viewLink currentRoute ( "home", routes.top )
                     , viewLink currentRoute ( "nowhere", routes.notFound )
                     ]
+                , div [ Attr.class "navbar-end" ]
+                    [ div [ Attr.class "navbar-item" ]
+                        [ div [ Attr.class "buttons" ]
+                            [ a [ Attr.class "button is-primary" ] [ text "Sign up" ]
+                            , a [ Attr.class "button is-light" ] [ text "Login" ]
+                            ]
+                        ]
+                    ]
                 ]
             ]
         ]

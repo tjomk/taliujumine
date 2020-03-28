@@ -1,4 +1,5 @@
 @import 'bulma';
+@import "bulma-block-list/src/block-list";
 @import 'utils.scss';
 
 html, body {
@@ -12,3 +13,6 @@ html, body {
   }
 }
 
+.navbar {
+  margin-bottom: 2rem;
+}
