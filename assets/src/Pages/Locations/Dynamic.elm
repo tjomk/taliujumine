@@ -8,6 +8,7 @@ import Http
 import Iso8601
 import Json.Decode as Decode exposing (Decoder)
 import Json.Decode.Pipeline exposing (required)
+import Json.Encode as Encode
 import RemoteData exposing (WebData)
 import Spa.Page
 import Task
@@ -58,6 +59,14 @@ type alias User =
     }
 
 
+type alias CheckinForm =
+    { name : String
+    , comment : String
+    , minutes : String
+    , times : String
+    }
+
+
 type alias Model =
     { location : WebData Location
     , locationName : String
@@ -66,12 +75,13 @@ type alias Model =
     , time : Time.Posix
     , showCheckinModal : Bool
     , checkinUser : Maybe User
+    , checkinForm : CheckinForm
     }
 
 
 init : Params.Dynamic -> ( Model, Cmd Msg )
 init { param1 } =
-    ( Model RemoteData.Loading param1 RemoteData.NotAsked "" (Time.millisToPosix 0) False Maybe.Nothing
+    ( Model RemoteData.Loading param1 RemoteData.NotAsked "" (Time.millisToPosix 0) False Maybe.Nothing (CheckinForm "" "" "" "")
     , Cmd.batch
         [ fetchLocationInfo (getLocationName param1)
         , Task.perform GetCurrentTime Time.now
@@ -95,11 +105,17 @@ getLocationName location =
 type Msg
     = LocationInfoReceived (WebData Location)
     | UsersListReceived (WebData (List User))
+    | UserCheckedIn (WebData Checkin)
     | SearchTermUpdated String
     | GetCurrentTime Time.Posix
     | ShowConfirmationModal (Maybe User)
     | CloseConfirmationModal
     | HideSearchResults
+    | SubmitCheckin
+    | OnInputName String
+    | OnInputComment String
+    | OnInputMinutes String
+    | OnInputTimes String
 
 
 title : { global : globalModel, model : Model } -> String
@@ -137,6 +153,10 @@ update msg model =
         UsersListReceived response ->
             ( { model | users = response }, Cmd.none )
 
+        UserCheckedIn response ->
+            -- TODO: implement this
+            ( model, Cmd.none )
+
         ShowConfirmationModal user ->
             ( { model | showCheckinModal = True, checkinUser = user }, Cmd.none )
 
@@ -145,6 +165,49 @@ update msg model =
 
         HideSearchResults ->
             ( { model | searchTerm = "" }, Cmd.none )
+
+        OnInputName name ->
+            let
+                checkinForm =
+                    model.checkinForm
+
+                newCheckinForm =
+                    { checkinForm | name = name }
+            in
+            ( { model | checkinForm = newCheckinForm }, Cmd.none )
+
+        OnInputComment comment ->
+            let
+                checkinForm =
+                    model.checkinForm
+
+                newCheckinForm =
+                    { checkinForm | comment = comment }
+            in
+            ( { model | checkinForm = newCheckinForm }, Cmd.none )
+
+        OnInputMinutes minutes ->
+            let
+                checkinForm =
+                    model.checkinForm
+
+                newCheckinForm =
+                    { checkinForm | minutes = minutes }
+            in
+            ( { model | checkinForm = newCheckinForm }, Cmd.none )
+
+        OnInputTimes times ->
+            let
+                checkinForm =
+                    model.checkinForm
+
+                newCheckinForm =
+                    { checkinForm | times = times }
+            in
+            ( { model | checkinForm = newCheckinForm }, Cmd.none )
+
+        SubmitCheckin ->
+            ( model, createCheckin model.locationName model.checkinForm )
 
 
 
@@ -173,6 +236,16 @@ fetchLocationInfo locationName =
         }
 
 
+createCheckin : String -> CheckinForm -> Cmd Msg
+createCheckin locationName form =
+    Http.post
+        { url = "http://localhost:4000/api/v1/locations/" ++ locationName ++ "/checkin"
+        , body = checkinFormEncoder form |> Http.jsonBody
+        , expect =
+            Http.expectJson (RemoteData.fromResult >> UserCheckedIn) checkinDecoder
+        }
+
+
 
 -- SUBSCRIPTIONS
 
@@ -197,7 +270,7 @@ getModalClasses isActive =
 
 viewCheckinForm : Maybe User -> Html Msg
 viewCheckinForm user =
-    form []
+    div []
         [ case user of
             Just v ->
                 text ("Well done, " ++ v.fullName ++ "!")
@@ -206,29 +279,29 @@ viewCheckinForm user =
                 div [ class "field" ]
                     [ label [ class "label" ] [ text "Your name" ]
                     , div [ class "control" ]
-                        [ input [ class "input", type_ "text", name "name", placeholder "Optional" ] []
+                        [ input [ class "input", type_ "text", name "name", placeholder "Optional", onInput OnInputName ] []
                         ]
                     ]
         , div [ class "field" ]
             [ label [ class "label" ] [ text "How was it (in a few words)?" ]
             , div [ class "control" ]
-                [ input [ class "input", type_ "text", name "comment", placeholder "Optional" ] []
+                [ input [ class "input", type_ "text", name "comment", placeholder "Optional", onInput OnInputComment ] []
                 ]
             ]
         , div [ class "field" ]
             [ label [ class "label" ] [ text "Minutes spent in water" ]
             , div [ class "control" ]
-                [ input [ class "input", type_ "text", name "minutes", placeholder "Optional" ] []
+                [ input [ class "input", type_ "text", name "minutes", placeholder "Optional", onInput OnInputMinutes ] []
                 ]
             ]
         , div [ class "field" ]
             [ label [ class "label" ] [ text "Times you swam" ]
             , div [ class "control" ]
-                [ input [ class "input", type_ "text", name "times", placeholder "Optional" ] []
+                [ input [ class "input", type_ "text", name "times", placeholder "Optional", onInput OnInputTimes ] []
                 ]
             ]
         , div [ class "buttons" ]
-            [ button [ class "button is-primary" ] [ text "Checkin" ]
+            [ button [ class "button is-primary", onClick SubmitCheckin ] [ text "Checkin" ]
             , button [ class "button is-info", onClick CloseConfirmationModal ] [ text "Cancel" ]
             ]
         ]
@@ -392,7 +465,7 @@ pluralPeople total =
 
 viewStats : Model -> Html a
 viewStats model =
-    h4 [ class "is-size-4" ]
+    h4 [ class "is-size-4 mb-1" ]
         [ text "A total of "
         , b [] [ text (String.fromInt 95) ]
         , text " "
@@ -415,7 +488,9 @@ viewSidebar locationInfo =
                 ++ String.fromFloat (Tuple.second locationInfo.location)
                 ++ ","
                 ++ String.fromFloat (Tuple.first locationInfo.location)
-                ++ ",16,0.00,0.00/600x450@2x?access_token=pk.eyJ1IjoidGpvbWsiLCJhIjoiY2ltdzZwZ3piMDBhN3Y5bTF5MXp1N3ZpdSJ9.KQStq6NWM4fgI44FoEgJ0Q"
+                ++ ",16,0.00,0.00/600x450@2x?access_to"
+                ++ "ken=pk.eyJ1IjoidGpvbWsiLCJhIjoiY2ltdzZwZ3pi"
+                ++ "MDBhN3Y5bTF5MXp1N3ZpdSJ9.KQStq6NWM4fgI44FoEgJ0Q"
     in
     div [ class "card" ]
         [ div [ class "card-image" ]
@@ -504,3 +579,13 @@ decodeTuple =
     Decode.map2 Tuple.pair
         (Decode.index 0 Decode.float)
         (Decode.index 1 Decode.float)
+
+
+checkinFormEncoder : CheckinForm -> Encode.Value
+checkinFormEncoder form =
+    Encode.object
+        [ ( "name", Encode.string form.name )
+        , ( "comment", Encode.string form.comment )
+        , ( "minutes", Encode.string form.minutes )
+        , ( "times", Encode.string form.times )
+        ]

@@ -50,14 +50,17 @@ defmodule App.Places do
       {:error, %Ecto.Changeset{}}
 
   """
-  def create_checkin(attrs \\ %{}) do
+  def create_checkin(attrs) do
     %Checkin{location: attrs.location, user: attrs.user}
     |> Checkin.changeset(attrs)
     |> Repo.insert()
   end
 
-  def create_checkin(location, user, attrs \\ %{}) do
-    %Checkin{location: location, user: user}
+  @doc """
+  Creates checkin for a user without account
+  """
+  def create_checkin(%Location{} = location, attrs) do
+    %Checkin{location: location}
     |> Checkin.changeset(attrs)
     |> Repo.insert()
   end

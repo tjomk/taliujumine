@@ -12,6 +12,8 @@ defmodule AppWeb.CheckinController do
   end
 
   def create(conn, %{"checkin" => checkin_params}) do
+    location = Places.get_location_by_slug!(checkin_params.location)
+
     with {:ok, %Checkin{} = checkin} <- Places.create_checkin(checkin_params) do
       conn
       |> put_status(:created)
